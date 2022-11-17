@@ -292,5 +292,27 @@ TEST_F(XlaBuilderTest, DuplicateCustomCallComparator) {
   (void)symbol_table;
 }
 
+TEST_F(XlaBuilderTest, CustomCallWithFrontendAttributes) {
+  TF_ASSERT_OK(xla_builder_.GetCurrentStatus());
+
+  // Create frontend attributes and set it for the CustomCall op.
+  FrontendAttributes attr;
+  attr.mutable_map()->insert({"test_name", "test_value"});
+
+  xla_builder_.SetFrontendAttributes(attr);
+
+  // Add the CustomCallOp to the module.
+  Shape shape(PrimitiveType::PRED, /*dimensions=*/{}, /*dynamic_dimensions=*/{},
+              /*tuple_shapes=*/{});
+  auto custom_call = CustomCall(&xla_builder_, "test_call_target", {}, shape);
+
+  TF_ASSERT_OK(xla_builder_.GetCurrentStatus());
+
+  // Verify that the frontend attributes are correctly set for the CustomCall
+  // op.
+  ExpectHasSubstr(
+      GetMlirOpString(custom_call),
+      R"(%0 = mhlo.custom_call @test_call_target() {backend_config = "", mhlo.frontend_attributes = {test_name = "test_value"}} : () -> tensor<i1>)");
+}
 }  // namespace
 }  // namespace xla
