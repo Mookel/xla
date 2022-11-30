@@ -278,8 +278,6 @@ def main():
     def_fp.write("\t ?NewSession@tensorflow@@YAPEAVSession@1@AEBUSessionOptions@1@@Z\n")
     def_fp.write("\t ??1SavedModelBundleInterface@tensorflow@@UEAA@XZ\n")
     def_fp.write("\t ?MaybeSavedModelDirectory@tensorflow@@YA_NAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z\n")
-    def_fp.write("\t ?_TensorShapeProto_default_instance_@tensorflow@@3VTensorShapeProtoDefaultTypeInternal@1@A\n")
-    def_fp.write("\t ?_GraphDef_default_instance_@tensorflow@@3VGraphDefDefaultTypeInternal@1@A\n")
     def_fp.write("\t ??_7HistogramProto@tensorflow@@6B@\n")
 
     # Each symbols returned by undname matches the same position in candidates.
