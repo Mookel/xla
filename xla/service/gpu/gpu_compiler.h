@@ -136,6 +136,10 @@ class GpuCompiler : public LLVMCompiler {
       std::unique_ptr<HloModule> module, se::StreamExecutor* stream_exec,
       const CompileOptions& options) override;
 
+  StatusOr<std::unique_ptr<HloModule>> RunHloPassesWithoutDevice(
+      std::unique_ptr<HloModule> module, const CompileOptions& options,
+      const GpuTargetConfig& gpu_target_config);
+
   StatusOr<std::unique_ptr<BufferAssignment>> AssignBuffers(
       const HloModule* hlo_module) override;
 
@@ -172,15 +176,18 @@ class GpuCompiler : public LLVMCompiler {
  protected:
   virtual Status OptimizeHloPostLayoutAssignment(
       HloModule* hlo_module, se::StreamExecutor* stream_exec,
-      se::DeviceMemoryAllocator* device_allocator);
+      se::DeviceMemoryAllocator* device_allocator,
+      se::CudaComputeCapability cuda_compute_capability);
 
  private:
+  // Stream_executor is null during AOT compilation.
   Status OptimizeHloModule(HloModule* hlo_module,
                            se::StreamExecutor* stream_exec,
-                           se::DeviceMemoryAllocator* device_allocator);
+                           se::DeviceMemoryAllocator* device_allocator,
+                           const GpuTargetConfig& gpu_target_config);
 
   virtual Status OptimizeHloConvolutionCanonicalization(
-      HloModule* hlo_module, se::StreamExecutor* stream_exec,
+      HloModule* hlo_module, se::CudaComputeCapability cuda_compute_capability,
       se::DeviceMemoryAllocator* device_allocator) = 0;
 
   virtual HloDataflowAnalysis::CanShareBuffer GetCanShareBuffer() {

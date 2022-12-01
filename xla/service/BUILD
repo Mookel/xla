@@ -6976,6 +6976,12 @@ xla_aot_compile_gpu(
     mhlo = "xla_aot_compile_test_constant.mlir",
 )
 
+xla_aot_compile_gpu(
+    name = "xla_aot_compile_test_gpu_executable_gemm",
+    gpu_target_config = "xla_aot_compile_test_gpu_target_config.prototxt",
+    mhlo = "xla_aot_compile_test_gemm.mlir",
+)
+
 tf_cc_test(
     name = "xla_aot_compile_cpu_test",
     srcs = if_cuda_is_configured(["xla_aot_compile_cpu_test.cc"]),
@@ -7006,6 +7012,7 @@ tf_cc_test(
     data = if_cuda_is_configured([
         ":xla_aot_compile_test_gpu_executable",
         ":xla_aot_compile_test_gpu_executable_constant",
+        ":xla_aot_compile_test_gpu_executable_gemm",
     ]),
     env = {
         "XLA_FLAGS": "--xla_gpu_enable_xla_runtime_executable",

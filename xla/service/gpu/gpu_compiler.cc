@@ -167,6 +167,7 @@ limitations under the License.
 #include "xla/service/zero_sized_hlo_elimination.h"
 #include "xla/status_macros.h"
 #include "xla/stream_executor/cuda/cuda_platform_id.h"
+#include "xla/stream_executor/device_description.h"
 #include "xla/stream_executor/rocm/rocm_platform_id.h"
 #include "xla/stream_executor/stream_executor.h"
 #include "xla/translate/hlo_to_mhlo/hlo_utils.h"
@@ -338,7 +339,8 @@ void AddHloVerifier(HloPassPipeline* pipeline, HloVerifierOpts&& opts = {},
 // Runs optimization passes on the given HLO module.
 Status GpuCompiler::OptimizeHloModule(
     HloModule* hlo_module, se::StreamExecutor* stream_exec,
-    se::DeviceMemoryAllocator* device_allocator) {
+    se::DeviceMemoryAllocator* device_allocator,
+    const GpuTargetConfig& gpu_target_config) {
   const DebugOptions& debug_options = hlo_module->config().debug_options();
 
   AlgebraicSimplifierOptions layout_insensitive_algsimp_opts({},
@@ -347,11 +349,8 @@ Status GpuCompiler::OptimizeHloModule(
   layout_insensitive_algsimp_opts.set_minmax_propagate_nan(
       !debug_options.xla_gpu_enable_fast_min_max());
 
-  const se::Platform* platform = stream_exec->platform();
-  if (platform->Name() == "ROCM") {
-    // SwapConvOperands does not yet work on ROCM
+  if (gpu_target_config.platform_name == "ROCM")
     layout_insensitive_algsimp_opts.set_enable_conv_operand_swap(false);
-  }
 
   const int64_t num_partitions = hlo_module->config().num_partitions();
   if (num_partitions > 1) {
@@ -597,7 +596,7 @@ Status GpuCompiler::OptimizeHloModule(
   // Run target-specific HLO optimization passes for convolution
   // canonicalization.
   TF_RETURN_IF_ERROR(OptimizeHloConvolutionCanonicalization(
-      hlo_module, stream_exec, device_allocator));
+      hlo_module, gpu_target_config.cuda_compute_capability, device_allocator));
 
   {
     // Run layout assignment in a separate pipeline from
@@ -618,8 +617,9 @@ Status GpuCompiler::OptimizeHloModule(
   }
 
   // Run target-specific HLO optimization passes after layout assignment.
-  TF_RETURN_IF_ERROR(OptimizeHloPostLayoutAssignment(hlo_module, stream_exec,
-                                                     device_allocator));
+  TF_RETURN_IF_ERROR(OptimizeHloPostLayoutAssignment(
+      hlo_module, stream_exec, device_allocator,
+      gpu_target_config.cuda_compute_capability));
 
   {
     HloPassFix<HloPassPipeline> fusion("fusion");
@@ -633,7 +633,7 @@ Status GpuCompiler::OptimizeHloModule(
         /*debug_only=*/true);
     fusion.AddPass<GpuInstructionFusion>(/*may_duplicate=*/false);
     fusion.AddPass<GpuInstructionFusion>(/*may_duplicate=*/true);
-    const GpuDeviceInfo gpu_device_info = GetGpuDeviceInfo(stream_exec);
+    const GpuDeviceInfo gpu_device_info = gpu_target_config.gpu_device_info;
     fusion.AddPass<FusionMerger>(gpu_device_info, ShapeSizeBytesFunction());
     fusion.AddPass<GpuMultiOutputFusion>(gpu_device_info,
                                          ShapeSizeBytesFunction());
@@ -737,7 +737,8 @@ Status GpuCompiler::PrepareHloModuleForIrEmitting(HloModule* hlo_module) {
 
 Status GpuCompiler::OptimizeHloPostLayoutAssignment(
     HloModule* hlo_module, se::StreamExecutor* stream_exec,
-    se::DeviceMemoryAllocator* device_allocator) {
+    se::DeviceMemoryAllocator* device_allocator,
+    se::CudaComputeCapability cuda_compute_capability) {
   const DebugOptions& debug_options = hlo_module->config().debug_options();
 
   {
@@ -766,8 +767,7 @@ Status GpuCompiler::OptimizeHloPostLayoutAssignment(
     pipeline.AddPass<HloPassFix<MoveCopyToUsers>>();
 
     // Rewrite GEMMs into custom calls.
-    pipeline.AddPass<GemmRewriter>(
-        stream_exec->GetDeviceDescription().cuda_compute_capability());
+    pipeline.AddPass<GemmRewriter>(cuda_compute_capability);
 
     // Rewrite GEMMs with broadcasted inputs as strided GEMMs.
     pipeline.AddPass<GemmBroadcastFoldingRewriter>();
@@ -793,7 +793,7 @@ Status GpuCompiler::OptimizeHloPostLayoutAssignment(
     pipeline.AddPass<ReductionDimensionGrouper>();
     pipeline.AddPass<HloPassFix<ReductionSplitter>>();
     pipeline.AddPass<HloPassFix<GpuTreeReductionRewriter>>(
-        stream_exec->GetDeviceDescription().cuda_compute_capability());
+        cuda_compute_capability);
     TF_RETURN_IF_ERROR(pipeline.Run(hlo_module).status());
   }
 
@@ -876,8 +876,42 @@ StatusOr<std::unique_ptr<HloModule>> GpuCompiler::RunHloPasses(
   tsl::profiler::TraceMe activity(
       [&] { return absl::StrCat("HLO Transforms:", module->name()); },
       tsl::profiler::TraceMeLevel::kInfo);
-  TF_RETURN_IF_ERROR(
-      OptimizeHloModule(module.get(), stream_exec, options.device_allocator));
+
+  const se::Platform* platform = stream_exec->platform();
+  GpuTargetConfig gpu_target_config;
+  gpu_target_config.gpu_device_info = GetGpuDeviceInfo(stream_exec);
+  gpu_target_config.cuda_compute_capability =
+      stream_exec->GetDeviceDescription().cuda_compute_capability();
+  gpu_target_config.rocm_compute_capability =
+      stream_exec->GetDeviceDescription().rocm_compute_capability();
+  gpu_target_config.platform_name = platform->Name();
+
+  TF_RETURN_IF_ERROR(OptimizeHloModule(
+      module.get(), stream_exec, options.device_allocator, gpu_target_config));
+
+  TF_RETURN_IF_ERROR(PrepareHloModuleForIrEmitting(module.get()));
+
+  uint64_t end_usecs = tsl::Env::Default()->NowMicros();
+
+  // This won't record values for calls that error out (because if they error
+  // out we have no way of telling how far through the process we got).
+  RecordHloPassesDuration(end_usecs - start_usecs);
+
+  return std::move(module);
+}
+
+StatusOr<std::unique_ptr<HloModule>> GpuCompiler::RunHloPassesWithoutDevice(
+    std::unique_ptr<HloModule> module, const CompileOptions& options,
+    const GpuTargetConfig& gpu_target_config) {
+  // We dump the post-optimization HLO in RunBackend so no need to dump it here.
+  XLA_SCOPED_LOGGING_TIMER(
+      absl::StrCat("GpuCompiler::RunHloPasses for ", module->name()));
+  uint64_t start_usecs = tsl::Env::Default()->NowMicros();
+  tsl::profiler::TraceMe activity(
+      [&] { return absl::StrCat("HLO Transforms:", module->name()); },
+      tsl::profiler::TraceMeLevel::kInfo);
+  TF_RETURN_IF_ERROR(OptimizeHloModule(
+      module.get(), nullptr, options.device_allocator, gpu_target_config));
 
   TF_RETURN_IF_ERROR(PrepareHloModuleForIrEmitting(module.get()));
 

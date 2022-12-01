@@ -66,7 +66,14 @@ StatusOr<std::string> AotCompileGpuExecutable(
     std::unique_ptr<HloModule> hlo_module,
     const gpu::GpuTargetConfig& gpu_target_config) {
   gpu::NVPTXCompiler nvptx_compiler;
-  auto module_group = std::make_unique<HloModuleGroup>(std::move(hlo_module));
+  Compiler::CompileOptions compile_options;
+  TF_ASSIGN_OR_RETURN(
+      std::unique_ptr<HloModule> module_after_opt,
+      nvptx_compiler.RunHloPassesWithoutDevice(
+          std::move(hlo_module), compile_options, gpu_target_config));
+
+  auto module_group =
+      std::make_unique<HloModuleGroup>(std::move(module_after_opt));
   AotCompilationOptions aot_options(nvptx_compiler.PlatformId());
   aot_options.set_target_config(gpu_target_config);
   TF_ASSIGN_OR_RETURN(
