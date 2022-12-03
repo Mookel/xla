@@ -1325,27 +1325,36 @@ InstructionValueSet& HloDataflowAnalysis::GetInstructionValueSet(
 }
 
 Status HloDataflowAnalysis::InitializeInstructionValueSets() {
+  // Count the number of values we're going to get so we don't have to resize
+  // the values_ vector repeatedly.
+  int64_t num_values = 0;
+  for (const HloComputation* comp : module_.computations()) {
+    for (const HloInstruction* instr : comp->instructions()) {
+      num_values += ShapeUtil::SubshapeCount(instr->shape());
+    }
+  }
+  values_.reserve(num_values);
+
   for (const HloComputation* computation : module_.MakeComputationSorted()) {
     const CallGraphNode& call_graph_node = call_graph_->GetNode(computation);
     for (HloInstruction* instruction :
          computation->MakeInstructionPostOrder()) {
-      // Create an empty shape tree.
-      value_sets_.insert({instruction, std::make_unique<InstructionValueSet>(
-                                           instruction->shape())});
+      // Intern the shape and then create an empty shape tree.
+      auto [shape_it, inserted_ignored] = shapes_.insert(instruction->shape());
+      auto [value_set_it, inserted_ignored2] = value_sets_.insert(
+          {instruction, std::make_unique<InstructionValueSet>(&*shape_it)});
+      InstructionValueSet& instr_value_set = *value_set_it->second;
 
       // For each sub-shape of the instruction shape, add a new HloValue to its
       // HloValueSet. should_define may be provided to define a subset of
       // values.
       auto define_all_values =
-          [this, &instruction](
-              absl::FunctionRef<bool(const ShapeIndex&)> should_define =
+          [&](absl::FunctionRef<bool(const ShapeIndex&)> should_define =
                   [](const ShapeIndex&) { return true; }) {
-            for (auto& pair : GetInstructionValueSet(instruction)) {
-              const ShapeIndex& index = pair.first;
-              if (should_define(index)) {
-                HloValue* value =
-                    NewHloValue(instruction, index, /*is_phi=*/false);
-                GetValueSet(instruction, index).AddValue(value);
+            for (auto& [shape_index, value_set] : instr_value_set) {
+              if (should_define(shape_index)) {
+                value_set.AddValue(
+                    NewHloValue(instruction, shape_index, /*is_phi=*/false));
               }
             }
           };

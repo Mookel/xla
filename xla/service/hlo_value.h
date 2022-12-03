@@ -258,6 +258,8 @@ class InstructionValueSet : public ShapeTree<HloValueSet> {
  public:
   explicit InstructionValueSet(const Shape& shape)
       : ShapeTree<HloValueSet>(shape) {}
+  explicit InstructionValueSet(const Shape* shape)
+      : ShapeTree<HloValueSet>(shape) {}
 
   // Sets this value set to the union of the given value sets. Returns whether
   // this value set changed.

@@ -28,6 +28,7 @@ limitations under the License.
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/container/node_hash_set.h"
 #include "absl/types/span.h"
 #include "xla/hlo/ir/hlo_instruction.h"
 #include "xla/hlo/ir/hlo_module.h"
@@ -314,6 +315,12 @@ class HloDataflowAnalysis {
   const HloModule& module_;
   const bool ssa_form_;
   const bool bitcast_defines_value_;
+
+  // Set of all Shapes seen in the graph.  This is used to dedup the Shape
+  // objects in the ShapeTrees inside of value_sets_.  Deduping these shapes is
+  // a large performance win, because copying and then destroying them all is
+  // expensive.
+  absl::node_hash_set<Shape> shapes_;
 
   std::unique_ptr<CallGraph> call_graph_;
 
