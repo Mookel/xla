@@ -4984,11 +4984,11 @@ cc_library(
         "//xla/hlo/ir:hlo",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@tsl//platform:errors",
         "@tsl//platform:logging",
+        "@tsl//platform:status",
     ],
 )
 
@@ -6155,6 +6155,7 @@ cc_library(
     deps = [
         "//xla:types",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@tsl//platform:env",
     ],
