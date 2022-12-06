@@ -1,7 +1,7 @@
 # Description: StreamExecutor Interface for TPUs
 
 load("@tsl//tsl/platform:rules_cc.bzl", "cc_library")
-load("//third_party/tensorflow:tensorflow.bzl", "tf_cc_test")
+load("//xla:xla.bzl", "xla_cc_test")
 
 package(
     # copybara:uncomment default_applicable_licenses = ["//third_party/tensorflow:license"],
@@ -17,7 +17,6 @@ package(
         "//third_party/tensorflow/core/common_runtime/next_pluggable_device:__subpackages__",
         "//third_party/tensorflow/core/tpu:__subpackages__",
         "//third_party/tensorflow/dtensor:__subpackages__",
-        "//third_party/tensorflow/stream_executor:__subpackages__",
         "//xla:__subpackages__",
         "//xla/backends/profiler/tpu:__subpackages__",
     ],
@@ -543,7 +542,7 @@ cc_library(
     ],
 )
 
-tf_cc_test(
+xla_cc_test(
     name = "pjrt_api_test",
     srcs = ["pjrt_api_test.cc"],
     deps = [
