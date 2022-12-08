@@ -20,3 +20,9 @@ def TosaLegalizeMhloPass : Pass<"tosa-legalize-mhlo", "mlir::func::FuncOp"> {
   let constructor = "createLegalizeMhloPass()";
   let dependentDialects = ["::mlir::tosa::TosaDialect"];
 }
+
+def TosaPrepareMhloPass : Pass<"tosa-prepare-mhlo", "mlir::func::FuncOp"> {
+  let summary = "Prepare MHLO for lowering to TOSA";
+  let constructor = "createPrepareMhloPass()";
+  let dependentDialects = ["::mlir::tosa::TosaDialect"];
+}

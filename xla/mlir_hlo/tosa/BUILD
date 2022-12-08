@@ -57,6 +57,7 @@ cc_library(
     name = "MHLOTOSATransforms",
     srcs = [
         "lib/Transforms/legalize_mhlo.cc",
+        "lib/Transforms/prepare_mhlo.cc",
     ],
     hdrs = [
         "include/mhlo_tosa/Transforms/passes.h",
