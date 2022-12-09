@@ -93,10 +93,36 @@ func.func @pad(%arg0: tensor<1x2x3xf16>, %arg1: tensor<f16>) -> tensor<2x4x7xf16
     edge_padding_low = dense<[0, 1, 2]> : tensor<3xi64>,
     interior_padding = dense<[0, 0, 1]> : tensor<3xi64>
   } : (tensor<1x2x3xf16>, tensor<f16>) -> tensor<2x4x7xf16>
-  %1 = "mhlo_test.get_return_type_components"(%0)
-      : (tensor<2x4x7xf16>) -> tensor<2x4x7xindex>
-// CHECK: %1 = "mhlo_test.return_type_components"(%0) {dims0 = [2, 4, 7], element_type0 = f16} : (tensor<2x4x7xf16>) -> tensor<2x4x7xindex>
+  %1 = "mhlo_test.get_return_type_components"(%0) : (tensor<2x4x7xf16>) -> tensor<2x4x7xindex>
+// CHECK: %1 = "mhlo_test.get_return_type_components"(%0) : (tensor<2x4x7xf16>) -> tensor<2x4x7xindex>
   func.return %0 : tensor<2x4x7xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @pad_with_bounds
+func.func @pad_with_bounds(%arg0: tensor<3x?x?xf16, #mhlo.type_extensions<bounds = [?, 3, ?]>>, %arg1: tensor<f16>) -> tensor<*xindex> {
+  %0 = "mhlo.pad"(%arg0, %arg1) {
+    edge_padding_low = dense<[2, 2, 0]> : tensor<3xi64>,
+    edge_padding_high = dense<[0, 0, 0]> : tensor<3xi64>,
+    interior_padding = dense<[1, 1, 1]> : tensor<3xi64>
+  } : (tensor<3x?x?xf16, #mhlo.type_extensions<bounds = [?, 3, ?]>>, tensor<f16>) -> tensor<*xf16>
+  %1 = "mhlo_test.get_return_type_components"(%0) : (tensor<*xf16>) -> tensor<*xindex>
+  // CHECK: %1 = "mhlo_test.get_return_type_components"(%0) : (tensor<*xf16>) -> tensor<*xindex>
+  func.return %1 : tensor<*xindex>
+}
+
+// -----
+
+func.func @pad_with_negative_inferred_bounds(%arg0: tensor<3x?x?xf16, #mhlo.type_extensions<bounds = [?, 3, ?]>>, %arg1: tensor<f16>) -> tensor<*xindex> {
+  // expected-error@+1 {{Padding result in negative bound for dimension 1}}
+  %0 = "mhlo.pad"(%arg0, %arg1) {
+    edge_padding_low = dense<[2, -10, 0]> : tensor<3xi64>,
+    edge_padding_high = dense<[0, 0, 0]> : tensor<3xi64>,
+    interior_padding = dense<[1, 1, 1]> : tensor<3xi64>
+  } : (tensor<3x?x?xf16, #mhlo.type_extensions<bounds = [?, 3, ?]>>, tensor<f16>) -> tensor<*xf16>
+  %1 = "mhlo_test.get_return_type_components"(%0) : (tensor<*xf16>) -> tensor<*xindex>
+  func.return %1 : tensor<*xindex>
 }
 
 // -----

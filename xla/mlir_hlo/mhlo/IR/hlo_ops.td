@@ -2015,7 +2015,6 @@ def MHLO_ConcatenateOp : MHLO_ShapedInterfaceOp<"concatenate",
 
   let hasCanonicalizer = 1;
   let hasFolder = 1;
-  let hasVerifier = 1;
 }
 
 def MHLO_CollectivePermuteOp: MHLO_Op<"collective_permute",
@@ -2662,7 +2661,8 @@ def MHLO_PartitionIdOp : MHLO_Op<"partition_id", [
 }
 
 def MHLO_PadOp: MHLO_ShapedInterfaceOp<"pad",
-      [Pure, SameOperandsAndResultElementType, InferTensorType]> {
+      [Pure, SameOperandsAndResultElementType,
+      DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
   let summary = "Pad operator";
   let description = [{
     Pads edges and between the elements of `operand` with the `padding_value`
