@@ -98,7 +98,7 @@ def make_gpu_client(distributed_client=None, node_id=0, platform_name=None,
 
 
 def make_tfrt_tpu_c_api_client():
-  return _xla.get_tfrt_tpu_c_api_client()
+  return _xla.get_c_api_client('tpu')
 
 
 def _use_pjrt_c_api() -> bool:
