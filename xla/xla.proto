@@ -801,4 +801,5 @@ message ScheduleProto {
   }
 
   repeated Instruction instructions = 1;
+  HloModuleProto hlo_module = 2;
 }
