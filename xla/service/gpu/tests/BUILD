@@ -5,7 +5,7 @@
 # need to run on machines with GPUs present.
 
 load("@tsl//tsl:tsl.default.bzl", "filegroup")
-load("//tensorflow/compiler/xla/tests:build_defs.bzl", "xla_test")
+load("//xla/tests:build_defs.bzl", "xla_test")
 load(
     "//xla:xla.bzl",
     "xla_cc_binary",
@@ -15,7 +15,7 @@ load(
     "@tsl//tsl/platform:build_config_root.bzl",
     "tf_cuda_tests_tags",
 )
-load("//third_party/tensorflow/compiler/mlir:glob_lit_test.bzl", "glob_lit_tests")
+load("//xla:glob_lit_test.bzl", "glob_lit_tests")
 load(
     "@tsl//tsl/platform/default:cuda_build_defs.bzl",
     "if_cuda_is_configured",
