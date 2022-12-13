@@ -4579,7 +4579,7 @@ LogicalResult ReduceWindowOp::inferReturnTypeComponents(
       location, adaptor.getInputs(), adaptor.getInitValues(),
       adaptor.getWindowDimensions(), adaptor.getWindowStrides(),
       adaptor.getBaseDilations(), adaptor.getWindowDilations(),
-      adaptor.getPadding(), adaptor.getBody(), inferredReturnShapes);
+      adaptor.getPadding(), inferredReturnShapes);
 }
 
 // Get the operation used for reduction applied to `result_index`th result. Its
@@ -5200,7 +5200,7 @@ LogicalResult ReduceOp::inferReturnTypeComponents(
 LogicalResult ReduceOp::verify() {
   SmallVector<ShapedTypeComponents> unusedReturnShapes;
   return hlo::inferReduceOp(getLoc(), getInputs(), getInitValues(),
-                            getDimensions(), getBody(), unusedReturnShapes);
+                            getDimensions(), unusedReturnShapes);
 }
 
 // Enable constant folding to occur within the region of the ReduceOp
@@ -6905,8 +6905,7 @@ LogicalResult SortOp::inferReturnTypeComponents(
 
 LogicalResult SortOp::verify() {
   SmallVector<ShapedTypeComponents> unusedReturnShapes;
-  return hlo::inferSortOp(getLoc(), getInputs(), getDimension(),
-                          getComparator(), unusedReturnShapes);
+  return hlo::inferSortOp(getLoc(), getInputs(), unusedReturnShapes);
 }
 
 /// Drops the operands if the results are not used and they are not used in
@@ -7960,8 +7959,7 @@ LogicalResult WhileOp::inferReturnTypes(
     DictionaryAttr attributes, RegionRange regions,
     SmallVectorImpl<Type>& inferredReturnTypes) {
   WhileOp::Adaptor adaptor(operands, attributes, regions);
-  return hlo::inferWhileOp(location, adaptor.getOperand(), adaptor.getCond(),
-                           adaptor.getBody(), inferredReturnTypes);
+  return hlo::inferWhileOp(location, adaptor.getOperand(), inferredReturnTypes);
 }
 
 /// Print a `while` op.
