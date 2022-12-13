@@ -5323,12 +5323,23 @@ cc_library(
         ":hlo_proto_cc",
         "//xla:debug_options_flags",
         "//xla:shape_layout",
-        "//xla:types",
         "//xla:xla_data_proto_cc",
         "//xla:xla_proto_cc",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
         "@tsl//tsl/platform:statusor",
+    ],
+)
+
+cc_test(
+    name = "hlo_module_config_test",
+    srcs = ["hlo_module_config_test.cc"],
+    deps = [
+        ":hlo_module_config",
+        "//third_party/tensorflow/core:test",
+        "//third_party/tensorflow/core/platform:errors",
+        "//xla:xla_proto_cc",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
