@@ -52,9 +52,11 @@ def xla_cc_binary(deps = None, **kwargs):
 def xla_cc_test(
         name,
         deps = [],
+        extra_copts = [],
         **kwargs):
     native.cc_test(
         name = name,
+        copts = extra_copts,
         deps = deps + if_tsl_link_protobuf(
                    [],
                    [
